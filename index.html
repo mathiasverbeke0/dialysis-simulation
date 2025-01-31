@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dialysis simulation</title>
+    <style>
+        :root {
+          --primary: #3b82f6;
+          --secondary: #64748b;
+          --accent: #7c3aed;
+          --background: #f8fafc;
+          --tube-color: rgba(203, 213, 225, 0.5);
+          --ion-color: #7c3aed;
+          --ion-outside-color: rgba(124, 58, 237, 0.6);
+        }
+    
+        body {
+          margin: 0;
+          font-family: 'Inter', system-ui, -apple-system, sans-serif;
+          background: var(--background);
+          color: var(--secondary);
+        }
+    
+        .container {
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 2rem;
+        }
+    
+        .header {
+          text-align: center;
+          margin-bottom: 2rem;
+        }
+    
+        .title {
+          font-size: 2rem;
+          font-weight: 700;
+          color: var(--primary);
+          margin-bottom: 0.5rem;
+        }
+    
+        .subtitle {
+          font-size: 1rem;
+          color: var(--secondary);
+        }
+    
+        .simulation-container {
+          display: flex;
+          gap: 2rem;
+          margin-bottom: 2rem;
+          min-height: 500px;
+        }
+    
+        .beaker-container {
+          flex: 2;
+          position: relative;
+        }
+        
+        .beaker {
+          width: 100%;
+          height: 100%;
+          border: 3px solid var(--secondary);
+          border-radius: 8px 8px 24px 24px;
+          position: relative !important;
+          background: white;
+          overflow: hidden;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          min-height: 400px;
+        }
+        
+        .controls-panel {
+          flex: 1;
+          background: white;
+          padding: 1.5rem;
+          border-radius: 8px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        }
+    
+        .dialysis-tube {
+          position: absolute;
+          width: 120px;
+          height: 320px;
+          background: var(--tube-color);
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          border-radius: 50px;
+          border: 2px solid var(--secondary);
+          z-index: 1;
+        }
+    
+        .tube-knot {
+          position: absolute;
+          width: 24px;
+          height: 12px;
+          background: var(--secondary);
+          left: 50%;
+          transform: translateX(-50%);
+        }
+    
+        .tube-knot.top {
+          top: -6px;
+          border-radius: 6px 6px 0 0;
+        }
+    
+        .tube-knot.bottom {
+          bottom: -6px;
+          border-radius: 0 0 6px 6px;
+        }
+        
+        .ion {
+          width: 12px;
+          height: 12px;
+          background: var(--ion-color);
+          border-radius: 50%;
+          position: absolute;
+          transition: all 0.5s ease;
+          box-shadow: 0 0 8px rgba(124, 58, 237, 0.4);
+          z-index: 2;
+          transform: translate(-50%, -50%);
+        }
+    
+        .ion.outside {
+          background: var(--ion-outside-color);
+        }
+        
+        .control-group {
+          margin-bottom: 1.5rem;
+        }
+    
+        .control-label {
+          font-weight: 600;
+          color: var(--secondary);
+          margin-bottom: 0.5rem;
+          display: block;
+        }
+        
+        .slider {
+          width: 100%;
+          height: 6px;
+          background: #e2e8f0;
+          border-radius: 3px;
+          appearance: none;
+          outline: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+          appearance: none;
+          width: 20px;
+          height: 20px;
+          background: var(--primary);
+          border-radius: 50%;
+          cursor: pointer;
+          transition: transform 0.1s ease;
+        }
+        
+        .slider::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+        }
+    
+        .percentage {
+          font-size: 2rem;
+          font-weight: 700;
+          color: var(--primary);
+          text-align: center;
+          margin: 1rem 0;
+        }
+    
+        .button {
+          width: 100%;
+          padding: 0.75rem;
+          font-size: 1rem;
+          font-weight: 600;
+          background: var(--primary);
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          margin-bottom: 0.5rem;
+        }
+    
+        .button:hover {
+          filter: brightness(110%);
+        }
+    
+        .stats {
+          margin-top: 1rem;
+          padding: 1rem;
+          background: #f1f5f9;
+          border-radius: 6px;
+        }
+    
+        .stat-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.5rem;
+          color: var(--secondary);
+          white-space: nowrap;
+        }
+
+        .stat-item span:first-child {
+          margin-right: 1rem;
+        }
+
+        .stat-item:last-child {
+          margin-bottom: 0;
+        }
+    
+        .concentration-stats {
+          margin-top: 1rem;
+          padding: 1rem;
+          background: #e0e7ff;
+          border-radius: 6px;
+        }
+    
+        .tooltip {
+          position: fixed;  /* Change from absolute to fixed */
+          background: white;
+          padding: 0.5rem;
+          border-radius: 4px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          pointer-events: none;
+          display: none;
+          z-index: 3;
+          white-space: nowrap;
+          font-size: 0.875rem;
+          transform: translateY(-50%);  /* Center vertically relative to ion */
+        }
+
+        .footer-buttons {
+          display: flex;
+          gap: 1rem;
+          justify-content: center;
+          margin-top: 2rem;
+          margin-bottom: 2rem;
+        }
+
+        .footer-button {
+          padding: 0.5rem 1rem;
+          font-size: 0.875rem;
+          color: #4a5568;
+          background-color: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 0.375rem;
+          transition: all 0.2s ease;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .footer-button:hover {
+          color: #2d3748;
+          background-color: #f7fafc;
+          border-color: #cbd5e0;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .footer-button svg {
+          width: 16px;
+          height: 16px;
+        }
+    
+        @media (max-width: 768px) {
+          .simulation-container {
+            flex-direction: column;
+          }
+          
+          .beaker {
+            height: 500px;
+          }
+        }
+    </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 class="title">CrO₄²⁻ Dialysis Simulation</h1>
+      <p class="subtitle">Interactive visualization of chromate ion diffusion through a semi-permeable membrane</p>
+    </div>
+
+    <div class="simulation-container">
+      <div class="beaker-container">
+        <div class="beaker" id="beaker">
+          <div class="dialysis-tube" id="tube">
+            <div class="tube-knot top"></div>
+            <div class="tube-knot bottom"></div>
+          </div>
+        </div>
+        <div class="tooltip" id="tooltip"></div>
+      </div>
+
+      <div class="controls-panel">
+        <div class="control-group">
+          <label class="control-label">Dialysis Progress</label>
+          <div class="percentage" id="percentage">0%</div>
+          <input type="range" min="0" max="100" value="0" class="slider" id="transferSlider">
+        </div>
+
+        <button class="button" id="resetBtn">Reset Simulation</button>
+
+        <div class="stats">
+          <div class="stat-item">
+            <span>Total Ions:</span>
+            <span id="totalIons">32</span>
+          </div>
+          <div class="stat-item">
+            <span>Inside Membrane:</span>
+            <span id="insideIons">32</span>
+          </div>
+          <div class="stat-item">
+            <span>Outside Membrane:</span>
+            <span id="outsideIons">0</span>
+          </div>
+        </div>
+
+        <div class="concentration-stats">
+          <div class="stat-item">
+            <span>Internal Volume:</span>
+            <span>6 mL</span>
+          </div>
+          <div class="stat-item">
+            <span>External Volume:</span>
+            <span>100 mL</span>
+          </div>
+          <div class="stat-item">
+            <span>Internal Concentration:</span>
+            <span id="internalConc">5.33 ions/mL</span>
+          </div>
+          <div class="stat-item">
+            <span>External Concentration:</span>
+            <span id="externalConc">0 ions/mL</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-buttons">
+      <a href="https://github.com/mathiasverbeke0/dialysis-simulation" class="footer-button" target="_blank" rel="noopener noreferrer">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+        </svg>
+        About
+      </a>
+      <a href="mailto:mathias.verbeke@howest.be" class="footer-button">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+          <polyline points="22,6 12,13 2,6"></polyline>
+        </svg>
+        Contact
+      </a>
+    </div>
+  </div>
+
+  <script>
+    const NUM_IONS = 32;
+    const INTERNAL_VOLUME = 6; // mL
+    const EXTERNAL_VOLUME = 100; // mL
+    const ions = [];
+    let currentPercentage = 0;
+
+    function getRandomPosition(isInside, beakerRect, tubeRect) {
+      const ionSize = 12;
+      const padding = ionSize + 15;
+      const paddingPercent = (padding / beakerRect.width) * 100;
+
+      if (isInside) {
+        const tubeLeftPercent = ((tubeRect.left - beakerRect.left) / beakerRect.width) * 100;
+        const tubeTopPercent = ((tubeRect.top - beakerRect.top) / beakerRect.height) * 100;
+        const tubeWidthPercent = (tubeRect.width / beakerRect.width) * 100;
+        const tubeHeightPercent = (tubeRect.height / beakerRect.height) * 100;
+
+        const leftPercent = tubeLeftPercent + paddingPercent + 
+          Math.random() * (tubeWidthPercent - paddingPercent * 2);
+        const topPercent = tubeTopPercent + paddingPercent + 
+          Math.random() * (tubeHeightPercent - paddingPercent * 2);
+
+        return { left: leftPercent, top: topPercent };
+      } else {
+        const beakerPaddingPercent = (padding + 20) / beakerRect.width * 100;
+        let leftPercent, topPercent;
+        const tubeLeftPercent = ((tubeRect.left - beakerRect.left) / beakerRect.width) * 100;
+        const tubeTopPercent = ((tubeRect.top - beakerRect.top) / beakerRect.height) * 100;
+        const tubeWidthPercent = (tubeRect.width / beakerRect.width) * 100;
+        const tubeHeightPercent = (tubeRect.height / beakerRect.height) * 100;
+
+        do {
+          if (Math.random() < 0.5) {
+            leftPercent = beakerPaddingPercent + 
+              Math.random() * (tubeLeftPercent - beakerPaddingPercent * 2);
+          } else {
+            const tubeRightPercent = tubeLeftPercent + tubeWidthPercent;
+            leftPercent = tubeRightPercent + 
+              Math.random() * (100 - tubeRightPercent - beakerPaddingPercent * 2);
+          }
+          topPercent = beakerPaddingPercent + 
+            Math.random() * (100 - beakerPaddingPercent * 2);
+        } while (
+          leftPercent > tubeLeftPercent - paddingPercent &&
+          leftPercent < tubeLeftPercent + tubeWidthPercent + paddingPercent &&
+          topPercent > tubeTopPercent - paddingPercent &&
+          topPercent < tubeTopPercent + tubeHeightPercent + paddingPercent
+        );
+
+        return { left: leftPercent, top: topPercent };
+      }
+    }
+
+    function isColliding(pos1, pos2, beakerRect) {
+      const pos1X = (pos1.left / 100) * beakerRect.width;
+      const pos1Y = (pos1.top / 100) * beakerRect.height;
+      const pos2X = (pos2.left / 100) * beakerRect.width;
+      const pos2Y = (pos2.top / 100) * beakerRect.height;
+      
+      const distance = Math.sqrt(Math.pow(pos1X - pos2X, 2) + Math.pow(pos1Y - pos2Y, 2));
+      return distance < 12;
+    }
+
+    function getNonCollidingPosition(isInside, beakerRect, tubeRect, existingPositions) {
+      let newPos;
+      let collision;
+      let attempts = 0;
+      const maxAttempts = 100;
+      
+      do {
+        collision = false;
+        newPos = getRandomPosition(isInside, beakerRect, tubeRect);
+        for (const pos of existingPositions) {
+          if (isColliding(newPos, pos, beakerRect)) {
+            collision = true;
+            break;
+          }
+        }
+        attempts++;
+      } while (collision && attempts < maxAttempts);
+      
+      return newPos;
+    }
+
+    function updateConcentrations(insideIons, outsideIons) {
+      const internalConc = (insideIons / INTERNAL_VOLUME).toFixed(2);
+      const externalConc = (outsideIons / EXTERNAL_VOLUME).toFixed(2);
+      
+      document.getElementById('internalConc').textContent = `${internalConc} ions/mL`;
+      document.getElementById('externalConc').textContent = `${externalConc} ions/mL`;
+    }
+
+    function createIons() {
+      const beaker = document.getElementById('beaker');
+      const beakerRect = beaker.getBoundingClientRect();
+      const tubeRect = document.querySelector('.dialysis-tube').getBoundingClientRect();
+      const existingPositions = [];
+
+      for (let i = 0; i < NUM_IONS; i++) {
+        const ion = document.createElement('div');
+        ion.className = 'ion';
+        const pos = getNonCollidingPosition(true, beakerRect, tubeRect, existingPositions);
+        existingPositions.push(pos);
+        ion.style.left = `${pos.left}%`;
+        ion.style.top = `${pos.top}%`;
+        beaker.appendChild(ion);
+        ions.push({ element: ion, basePosition: pos });
+      }
+    }
+
+    function wiggleIon(ion, basePosition, beakerRect) {
+      const wiggleAmountPercent = (2 / beakerRect.width) * 100;
+      const newX = basePosition.left + (Math.random() - 0.5) * wiggleAmountPercent;
+      const newY = basePosition.top + (Math.random() - 0.5) * wiggleAmountPercent;
+
+      ion.style.left = `${newX}%`;
+      ion.style.top = `${newY}%`;
+
+      const tooltip = document.getElementById('tooltip');
+      const beaker = document.getElementById('beaker');
+
+      ion.onmouseover = (e) => {
+        const beakerRect = beaker.getBoundingClientRect();
+        const ionRect = ion.getBoundingClientRect();
+        
+        tooltip.style.display = 'block';
+        // Position tooltip relative to the ion's actual position
+        tooltip.style.left = `${ionRect.left + ionRect.width + 5}px`;
+        tooltip.style.top = `${ionRect.top}px`;
+        
+        // Keep tooltip inside beaker bounds
+        const tooltipRect = tooltip.getBoundingClientRect();
+        if (tooltipRect.right > beakerRect.right) {
+          tooltip.style.left = `${ionRect.left - tooltipRect.width - 5}px`;
+        }
+        
+        tooltip.textContent = ion.classList.contains('outside') ? 
+          'Diffused CrO₄²⁻ Ion' : 'CrO₄²⁻ Ion within membrane';
+      };
+
+      ion.onmouseout = () => {
+        tooltip.style.display = 'none';
+      };
+    }
+
+    function updateIons(percentage) {
+      const numIonsToMove = Math.floor((percentage / 100) * NUM_IONS);
+      const beakerRect = document.getElementById('beaker').getBoundingClientRect();
+      const tubeRect = document.querySelector('.dialysis-tube').getBoundingClientRect();
+      const existingPositions = [];
+
+      ions.forEach((ion, index) => {
+        if (index < numIonsToMove) {
+          if (!ion.element.classList.contains('outside')) {
+            ion.element.classList.add('outside');
+            ion.basePosition = getNonCollidingPosition(false, beakerRect, tubeRect, existingPositions);
+          }
+        } else {
+          if (ion.element.classList.contains('outside')) {
+            ion.element.classList.remove('outside');
+            ion.basePosition = getNonCollidingPosition(true, beakerRect, tubeRect, existingPositions);
+          }
+        }
+        existingPositions.push(ion.basePosition);
+        ion.element.style.left = `${ion.basePosition.left}%`;
+        ion.element.style.top = `${ion.basePosition.top}%`;
+      });
+
+      document.getElementById('percentage').textContent = `${percentage}%`;
+      document.getElementById('insideIons').textContent = NUM_IONS - numIonsToMove;
+      document.getElementById('outsideIons').textContent = numIonsToMove;
+      
+      updateConcentrations(NUM_IONS - numIonsToMove, numIonsToMove);
+    }
+
+    function startWiggling() {
+      const updatePositions = () => {
+        const beakerRect = document.getElementById('beaker').getBoundingClientRect();
+        const tubeRect = document.querySelector('.dialysis-tube').getBoundingClientRect();
+
+        ions.forEach((ion, index) => {
+          const isOutside = index < Math.floor((currentPercentage / 100) * NUM_IONS);
+          if (!ion.basePosition || 
+              (isOutside && !ion.element.classList.contains('outside')) ||
+              (!isOutside && ion.element.classList.contains('outside'))) {
+            ion.basePosition = getRandomPosition(!isOutside, beakerRect, tubeRect);
+          }
+          wiggleIon(ion.element, ion.basePosition, beakerRect);
+        });
+      };
+
+      setInterval(updatePositions, 100);
+      window.addEventListener('resize', () => {
+        const beakerRect = document.getElementById('beaker').getBoundingClientRect();
+        const tubeRect = document.querySelector('.dialysis-tube').getBoundingClientRect();
+        const existingPositions = [];
+        
+        ions.forEach((ion, index) => {
+          const isOutside = index < Math.floor((currentPercentage / 100) * NUM_IONS);
+          ion.basePosition = getNonCollidingPosition(!isOutside, beakerRect, tubeRect, existingPositions);
+          existingPositions.push(ion.basePosition);
+          ion.element.style.left = `${ion.basePosition.left}%`;
+          ion.element.style.top = `${ion.basePosition.top}%`;
+        });
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      createIons();
+      startWiggling();
+      updateConcentrations(NUM_IONS, 0);
+
+      const slider = document.getElementById('transferSlider');
+      slider.addEventListener('input', (e) => {
+        currentPercentage = parseInt(e.target.value);
+        updateIons(currentPercentage);
+      });
+
+      const resetBtn = document.getElementById('resetBtn');
+      resetBtn.addEventListener('click', () => {
+        slider.value = 0;
+        currentPercentage = 0;
+        updateIons(0);
+      });
+    });
+  </script>
+</body>
+</html>
