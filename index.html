@@ -483,11 +483,9 @@
         const ionRect = ion.getBoundingClientRect();
         
         tooltip.style.display = 'block';
-        // Position tooltip relative to the ion's actual position
         tooltip.style.left = `${ionRect.left + ionRect.width + 5}px`;
         tooltip.style.top = `${ionRect.top}px`;
         
-        // Keep tooltip inside beaker bounds
         const tooltipRect = tooltip.getBoundingClientRect();
         if (tooltipRect.right > beakerRect.right) {
           tooltip.style.left = `${ionRect.left - tooltipRect.width - 5}px`;
@@ -503,7 +501,7 @@
     }
 
     function updateIons(percentage) {
-      const numIonsToMove = Math.floor((percentage / 100) * NUM_IONS);
+      const numIonsToMove = Math.round((percentage / 100) * NUM_IONS);
       const beakerRect = document.getElementById('beaker').getBoundingClientRect();
       const tubeRect = document.querySelector('.dialysis-tube').getBoundingClientRect();
       const existingPositions = [];
@@ -525,7 +523,7 @@
         ion.element.style.top = `${ion.basePosition.top}%`;
       });
 
-      document.getElementById('percentage').textContent = `${percentage}%`;
+      document.getElementById('percentage').textContent = `${percentage.toFixed(3)}%`;
       document.getElementById('insideIons').textContent = NUM_IONS - numIonsToMove;
       document.getElementById('outsideIons').textContent = numIonsToMove;
       
@@ -570,8 +568,12 @@
       updateConcentrations(NUM_IONS, 0);
 
       const slider = document.getElementById('transferSlider');
+      slider.min = 0;
+      slider.max = NUM_IONS;
+      slider.step = 1;
+
       slider.addEventListener('input', (e) => {
-        currentPercentage = parseInt(e.target.value);
+        currentPercentage = (parseInt(e.target.value) / NUM_IONS) * 100;
         updateIons(currentPercentage);
       });
 
